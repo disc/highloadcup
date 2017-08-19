@@ -22,9 +22,9 @@ var (
 	addr     = flag.String("addr", ":80", "TCP address to listen to")
 	compress = flag.Bool("compress", false, "Whether to enable transparent response compression")
 
-	locationsMap = make(map[uint]Location)
-	usersMap     = make(map[uint]User)
-	visitsMap    = make(map[uint]Visit)
+	locationsMap = make(map[uint]*Location)
+	usersMap     = make(map[uint]*User)
+	visitsMap    = make(map[uint]*Visit)
 
 	locationsCountryMap = make(map[string][]uint)
 
@@ -100,19 +100,19 @@ func parseLocations(fileBytes []byte) {
 }
 
 func updateLocationMaps(location Location) {
-	locationsMap[location.Id] = location
+	locationsMap[location.Id] = &location
 	locationsCountryMap[location.Country] = append(locationsCountryMap[location.Country], location.Id)
 }
 
 func updateVisitsMaps(visit Visit) {
-	visitsMap[visit.Id] = visit
+	visitsMap[visit.Id] = &visit
 
 	visitsByUserMap[visit.User] = append(visitsByUserMap[visit.User], visit)
 	visitsByLocationMap[visit.Location] = append(visitsByLocationMap[visit.Location], visit)
 }
 
 func updateUsersMaps(user User) {
-	usersMap[user.Id] = user
+	usersMap[user.Id] = &user
 }
 
 func parseVisits(fileBytes []byte) {
@@ -198,25 +198,25 @@ func getEntityId(path []byte) uint {
 	return uint(entityId)
 }
 
-func getUser(id uint) (User, error) {
+func getUser(id uint) (*User, error) {
 	if user, ok := usersMap[id]; ok {
 		return user, nil
 	}
-	return User{}, errors.New("user not found")
+	return nil, errors.New("user not found")
 }
 
-func getLocation(id uint) (Location, error) {
+func getLocation(id uint) (*Location, error) {
 	if location, ok := locationsMap[id]; ok {
 		return location, nil
 	}
-	return Location{}, errors.New("location not found")
+	return nil, errors.New("location not found")
 }
 
-func getVisits(id uint) (Visit, error) {
+func getVisits(id uint) (*Visit, error) {
 	if visit, ok := visitsMap[id]; ok {
 		return visit, nil
 	}
-	return Visit{}, errors.New("visit not found")
+	return nil, errors.New("visit not found")
 }
 
 func getUserVisits(userId uint, filters UserVisitsFilter) []UserVisit {
@@ -599,19 +599,17 @@ func locationRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 	path := ctx.Path()
 	isNew := path[len(path)-1] == 'w'
 
-	location := Location{}
 	if !isNew {
-		var err error
-		if location, err = getLocation(getEntityId(path)); err != nil {
+		if location, err := getLocation(getEntityId(path)); err != nil {
 			ctx.NotFound()
 			return nil
+		} else if ctx.IsGet() {
+			response, _ := json.Marshal(location)
+			return response
 		}
 	}
 
-	if ctx.IsGet() {
-		response, _ := json.Marshal(location)
-		return response
-	} else if ctx.IsPost() {
+	if ctx.IsPost() {
 		// create or update
 		if err := updateLocation(ctx, isNew); err != nil {
 			ctx.Error("{}", 400)
@@ -627,19 +625,17 @@ func usersRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 	path := ctx.Path()
 	isNew := path[len(path)-1] == 'w'
 
-	user := User{}
 	if !isNew {
-		var err error
-		if user, err = getUser(getEntityId(path)); err != nil {
+		if user, err := getUser(getEntityId(path)); err != nil {
 			ctx.NotFound()
 			return nil
+		} else if ctx.IsGet() {
+			response, _ := json.Marshal(user)
+			return response
 		}
 	}
 
-	if ctx.IsGet() {
-		response, _ := json.Marshal(user)
-		return response
-	} else if ctx.IsPost() {
+	if ctx.IsPost() {
 		// create or update
 		if err := updateUser(ctx, isNew); err != nil {
 			ctx.Error("{}", 400)
@@ -655,19 +651,17 @@ func visitsRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 	path := ctx.Path()
 	isNew := path[len(path)-1] == 'w'
 
-	visit := Visit{}
 	if !isNew {
-		var err error
-		if visit, err = getVisits(getEntityId(path)); err != nil {
+		if visit, err := getVisits(getEntityId(path)); err != nil {
 			ctx.NotFound()
 			return nil
+		} else if ctx.IsGet() {
+			response, _ := json.Marshal(visit)
+			return response
 		}
 	}
 
-	if ctx.IsGet() {
-		response, _ := json.Marshal(visit)
-		return response
-	} else if ctx.IsPost() {
+	if ctx.IsPost() {
 		// create or update
 		if err := updateVisit(ctx, isNew); err != nil {
 			ctx.Error("{}", 400)
