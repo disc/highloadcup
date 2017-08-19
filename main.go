@@ -10,6 +10,7 @@ import (
 	"errors"
 	"github.com/valyala/fasthttp"
 	"io/ioutil"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -66,7 +67,7 @@ type UserVisit struct {
 }
 
 type LocationAvg struct {
-	Avg float32 `json:"avg"`
+	Avg float64 `json:"avg"`
 }
 
 type UserVisitsFilter struct {
@@ -220,17 +221,33 @@ func getUserVisits(userId uint, filters UserVisitsFilter /*fromDate *int*/) []Us
 		if filters.toDistance != nil && locationsMap[visit.Location].Distance > *filters.toDistance {
 			continue
 		}
-		userVisits = append(userVisits, UserVisit{visit.Mark, visit.Visited_at, "Moscow"})
+		userVisits = append(userVisits, UserVisit{visit.Mark, visit.Visited_at, locationsMap[visit.Location].Place})
 	}
 
 	return userVisits
+}
+
+func Round(val float64, roundOn float64, places int) (newVal float64) {
+	var round float64
+	pow := math.Pow(10, float64(places))
+	digit := pow * val
+	_, div := math.Modf(digit)
+	_div := math.Copysign(div, val)
+	_roundOn := math.Copysign(roundOn, val)
+	if _div >= _roundOn {
+		round = math.Ceil(digit)
+	} else {
+		round = math.Floor(digit)
+	}
+	newVal = round / pow
+	return
 }
 
 func getTimestampByAge(age *int) int {
 	return int(time.Now().Unix()) - int((*age+1)*365*24*60*60)
 }
 
-func getLocationAvg(locationId uint, filters LocationAvgFilter) float32 {
+func getLocationAvg(locationId uint, filters LocationAvgFilter) float64 {
 	marks := make([]uint, 0)
 	var marksSum uint
 	for _, visit := range visitsByLocationMap[locationId] {
@@ -258,91 +275,224 @@ func getLocationAvg(locationId uint, filters LocationAvgFilter) float32 {
 	}
 
 	if len(marks) > 0 {
-		return float32(marksSum) / float32(len(marks))
+		return float64(marksSum) / float64(len(marks))
 	}
 
 	return 0
 }
 
-func requestHandler(ctx *fasthttp.RequestCtx) {
-	ctx.SetConnectionClose()
+func detectRoute(path []byte) string {
+	if path[1] == 'l' && path[len(path)-1] == 'g' {
+		return "locationAvg"
+	} else if path[1] == 'u' && path[len(path)-1] == 's' && len(path) >= 14 {
+		return "userVisits"
+	} else if path[1] == 'l' && path[9] == 's' {
+		return "locations"
+	} else if path[1] == 'u' && path[5] == 's' {
+		return "users"
+	} else if path[1] == 'v' && path[6] == 's' {
+		return "visits"
+	}
 
+	return ""
+}
+
+func locationAvgRequestHandler(ctx *fasthttp.RequestCtx) []byte  {
 	path := ctx.Path()
 	query := ctx.QueryArgs()
 
-	var response []byte
-
-	if path[1] == 'l' && path[len(path)-1] == 'g' {
-		locationId := getEntityId(path)
-		// get avg value
-		if _, err := getLocation(locationId); err != nil {
-			ctx.NotFound()
-			return
-		} else {
-			var filters = LocationAvgFilter{}
-			if fromDate := query.Has("fromDate"); fromDate {
-				//todo: validate + 400 if wrong param
-				fromDateInt, _ := strconv.Atoi(string(query.Peek("fromDate")))
+	locationId := getEntityId(path)
+	// get avg value
+	if _, err := getLocation(locationId); err != nil {
+		ctx.NotFound()
+		return nil
+	} else {
+		var filters = LocationAvgFilter{}
+		if fromDate := query.Has("fromDate"); fromDate {
+			if fromDateInt, err := strconv.Atoi(string(query.Peek("fromDate"))); err != nil {
+				ctx.Error("{}", 400)
+				return nil
+			} else {
 				filters.fromDate = &fromDateInt
 			}
-			if toDate := query.Has("toDate"); toDate {
-				toDateInt, _ := strconv.Atoi(string(query.Peek("toDate")))
+		}
+		if toDate := query.Has("toDate"); toDate {
+			if toDateInt, err := strconv.Atoi(string(query.Peek("toDate"))); err != nil {
+				ctx.Error("{}", 400)
+				return nil
+			} else {
 				filters.toDate = &toDateInt
 			}
-			if fromAge := query.Has("fromAge"); fromAge {
-				//todo: validate + 400 if wrong param
-				fromAgeInt, _ := strconv.Atoi(string(query.Peek("fromAge")))
+		}
+		if fromAge := query.Has("fromAge"); fromAge {
+			//todo: validate + 400 if wrong param
+			if fromAgeInt, err := strconv.Atoi(string(query.Peek("fromAge"))); err != nil {
+				ctx.Error("{}", 400)
+				return nil
+			} else {
 				filters.fromAge = &fromAgeInt
 			}
-			if toAge := query.Has("toAge"); toAge {
-				toAgeInt, _ := strconv.Atoi(string(query.Peek("toAge")))
+		}
+		if toAge := query.Has("toAge"); toAge {
+			if toAgeInt, err := strconv.Atoi(string(query.Peek("toAge"))); err != nil {
+				ctx.Error("{}", 400)
+				return nil
+			} else {
 				filters.toAge = &toAgeInt
 			}
-			if gender := query.Has("gender"); gender {
-				genderByte := string(query.Peek("gender"))
-				filters.gender = &genderByte
-			}
-			response, _ = json.Marshal(LocationAvg{getLocationAvg(locationId, filters)})
 		}
+		if gender := query.Has("gender"); gender {
+			if genderStr := string(query.Peek("gender")); len(genderStr) > 0 && (genderStr == "m" || genderStr == "f") {
+				filters.gender = &genderStr
+			} else {
+				ctx.Error("{}", 400)
+				return nil
+			}
+		}
+		response, _ := json.Marshal(LocationAvg{Round(getLocationAvg(locationId, filters), .5, 5)})
 
-	} else if path[1] == 'u' && path[len(path)-1] == 's' && len(path) >= 14 {
-		userId := getEntityId(path)
-		// get user visits
-		if _, err := getUser(userId); err != nil {
-			ctx.NotFound()
-			return
-		} else {
-			var filters = UserVisitsFilter{}
-			if fromDate := query.Has("fromDate"); fromDate {
-				//todo: validate + 400 if wrong param
-				fromDateInt, _ := strconv.Atoi(string(query.Peek("fromDate")))
+		return response
+	}
+}
+
+func userVisitsRequestHandler(ctx *fasthttp.RequestCtx) []byte {
+	path := ctx.Path()
+	query := ctx.QueryArgs()
+
+	userId := getEntityId(path)
+	// get user visits
+	if _, err := getUser(userId); err != nil {
+		ctx.NotFound()
+		return nil
+	} else {
+		var filters = UserVisitsFilter{}
+		if fromDate := query.Has("fromDate"); fromDate {
+			//todo: validate + 400 if wrong param
+			if fromDateInt, err := strconv.Atoi(string(query.Peek("fromDate"))); err != nil {
+				ctx.Error("{}", 400)
+				return nil
+			} else {
 				filters.fromDate = &fromDateInt
 			}
-			if toDate := query.Has("toDate"); toDate {
-				toDateInt, _ := strconv.Atoi(string(query.Peek("toDate")))
+		}
+		if toDate := query.Has("toDate"); toDate {
+			if toDateInt, err := strconv.Atoi(string(query.Peek("toDate"))); err != nil {
+				ctx.Error("{}", 400)
+				return nil
+			} else {
 				filters.toDate = &toDateInt
 			}
-			if country := query.Has("country"); country {
-				countryName := string(query.Peek("country"))
-				filters.country = &countryName
+		}
+		if country := query.Has("country"); country {
+			countryName := string(query.Peek("country"))
+			filters.country = &countryName
+		}
+		if toDistance := query.Has("toDistance"); toDistance {
+			// get location id by Country
+			if distanceInt, err := strconv.Atoi(string(query.Peek("toDistance"))); err != nil {
+				ctx.Error("{}", 400)
+				return nil
+			} else {
+				distanceInt := uint(distanceInt)
+				filters.toDistance = &distanceInt
 			}
-			if toDistance := query.Has("toDistance"); toDistance {
-				// get location id by Country
-				var distance uint = 1
-				filters.toDistance = &distance
-			}
+		}
 
-			response, _ = json.Marshal(UserVisits{getUserVisits(userId, filters)})
+		response, _ := json.Marshal(UserVisits{getUserVisits(userId, filters)})
+
+		return response
+	}
+}
+
+func locationRequestHandler(ctx *fasthttp.RequestCtx) []byte {
+	path := ctx.Path()
+	if location, err := getLocation(getEntityId(path)); err != nil {
+		ctx.NotFound()
+		return nil
+	} else {
+		if ctx.IsGet() {
+			response, _ := json.Marshal(location)
+			return response
+		} else if ctx.IsPost() {
+			// create or update
+			return nil
 		}
-	} else if path[1] == 'l' && path[9] == 's' {
-		// get location
-		if location, err := getLocation(getEntityId(path)); err != nil {
-			ctx.NotFound()
-			return
+	}
+	return nil
+}
+
+func usersRequestHandler(ctx *fasthttp.RequestCtx) []byte {
+	path := ctx.Path()
+	if user, err := getUser(getEntityId(path)); err != nil {
+		ctx.NotFound()
+		return nil
+	} else {
+		if ctx.IsGet() {
+			response, _ := json.Marshal(user)
+			return response
+		} else if ctx.IsPost() {
+			// create or update
+			return nil
+		}
+	}
+	return nil
+}
+
+func visitsRequestHandler(ctx *fasthttp.RequestCtx) []byte {
+	path := ctx.Path()
+	if visit, err := getVisits(getEntityId(path)); err != nil {
+		ctx.NotFound()
+		return nil
+	} else {
+		if ctx.IsGet() {
+			response, _ := json.Marshal(visit)
+			return response
+		} else if ctx.IsPost() {
+			// create or update
+			return nil
+		}
+	}
+	return nil
+}
+
+func requestHandler(ctx *fasthttp.RequestCtx) {
+	path := ctx.Path()
+
+	var response []byte
+
+	switch detectRoute(path) {
+	case "locationAvg":
+		if ctx.IsGet() {
+			response = locationAvgRequestHandler(ctx)
 		} else {
-			response, _ = json.Marshal(location)
+			ctx.NotFound()
 		}
-	} else if path[1] == 'u' && path[5] == 's' {
+	case "userVisits":
+		if ctx.IsGet() {
+			response = userVisitsRequestHandler(ctx)
+		} else {
+			ctx.NotFound()
+		}
+	case "users":
+		response = usersRequestHandler(ctx)
+	case "visits":
+		response = visitsRequestHandler(ctx)
+	case "locations":
+		response = locationRequestHandler(ctx)
+	default:
+		ctx.NotFound()
+		return
+	}
+
+	if ctx.IsGet() && len(response) > 0 {
+		//ctx.SetBody(response)
+		fmt.Fprintf(ctx, string(response))
+		ctx.SetContentType("application/json; charset=utf8")
+	}
+	ctx.SetConnectionClose()
+	return
+
+if path[1] == 'u' && path[5] == 's' {
 		// get user
 		if user, err := getUser(getEntityId(path)); err != nil {
 			ctx.NotFound()
@@ -361,10 +511,5 @@ func requestHandler(ctx *fasthttp.RequestCtx) {
 	} else {
 		ctx.NotFound()
 		return
-	}
-
-	if len(response) > 0 {
-		ctx.SetBody(response)
-		ctx.SetContentType("application/json; charset=utf8")
 	}
 }
