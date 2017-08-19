@@ -219,7 +219,7 @@ func getUserVisits(userId uint, filters UserVisitsFilter /*fromDate *int*/) []Us
 		if filters.country != nil && locationsMap[visit.Location].Country != *filters.country {
 			continue
 		}
-		if filters.toDistance != nil && locationsMap[visit.Location].Distance > *filters.toDistance {
+		if filters.toDistance != nil && locationsMap[visit.Location].Distance >= *filters.toDistance {
 			continue
 		}
 		userVisits[visit.Visited_at] = UserVisit{visit.Mark, visit.Visited_at, locationsMap[visit.Location].Place}
@@ -256,7 +256,7 @@ func Round(val float64, roundOn float64, places int) (newVal float64) {
 }
 
 func getTimestampByAge(age *int) int {
-	return int(time.Now().Unix()) - int((*age+1)*365*24*60*60)
+	return int(time.Now().Unix()) - (*age)*int(math.Floor(365.24*24*60*60))
 }
 
 func getLocationAvg(locationId uint, filters LocationAvgFilter) float64 {
@@ -270,8 +270,6 @@ func getLocationAvg(locationId uint, filters LocationAvgFilter) float64 {
 			continue
 		}
 		if filters.fromAge != nil || filters.toAge != nil {
-			// timestamp -  ((age+1) * 365.24 * 24 * 60 * 60)
-
 			if filters.fromAge != nil && usersMap[visit.User].Birth_date > getTimestampByAge(filters.fromAge) {
 				continue
 			}
@@ -337,7 +335,6 @@ func locationAvgRequestHandler(ctx *fasthttp.RequestCtx) []byte  {
 			}
 		}
 		if fromAge := query.Has("fromAge"); fromAge {
-			//todo: validate + 400 if wrong param
 			if fromAgeInt, err := strconv.Atoi(string(query.Peek("fromAge"))); err != nil {
 				ctx.Error("{}", 400)
 				return nil
@@ -379,7 +376,6 @@ func userVisitsRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 	} else {
 		var filters = UserVisitsFilter{}
 		if fromDate := query.Has("fromDate"); fromDate {
-			//todo: validate + 400 if wrong param
 			if fromDateInt, err := strconv.Atoi(string(query.Peek("fromDate"))); err != nil {
 				ctx.Error("{}", 400)
 				return nil
@@ -399,6 +395,7 @@ func userVisitsRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 			countryName := string(query.Peek("country"))
 			filters.country = &countryName
 		}
+		//TODO: Fix toDistance results
 		if toDistance := query.Has("toDistance"); toDistance {
 			// get location id by Country
 			if distanceInt, err := strconv.Atoi(string(query.Peek("toDistance"))); err != nil {
