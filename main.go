@@ -95,9 +95,24 @@ func parseLocations(fileBytes []byte) {
 	json.Unmarshal(fileBytes, &locations)
 
 	for _, loc := range locations.Locations {
-		locationsMap[loc.Id] = loc
-		locationsCountryMap[loc.Country] = append(locationsCountryMap[loc.Country], loc.Id)
+		updateLocationMaps(loc)
 	}
+}
+
+func updateLocationMaps(location Location) {
+	locationsMap[location.Id] = location
+	locationsCountryMap[location.Country] = append(locationsCountryMap[location.Country], location.Id)
+}
+
+func updateVisitsMaps(visit Visit) {
+	visitsMap[visit.Id] = visit
+
+	visitsByUserMap[visit.User] = append(visitsByUserMap[visit.User], visit)
+	visitsByLocationMap[visit.Location] = append(visitsByLocationMap[visit.Location], visit)
+}
+
+func updateUsersMaps(user User) {
+	usersMap[user.Id] = user
 }
 
 func parseVisits(fileBytes []byte) {
@@ -109,10 +124,7 @@ func parseVisits(fileBytes []byte) {
 	json.Unmarshal(fileBytes, &visits)
 
 	for _, visit := range visits.Visits {
-		visitsMap[visit.Id] = visit
-
-		visitsByUserMap[visit.User] = append(visitsByUserMap[visit.User], visit)
-		visitsByLocationMap[visit.Location] = append(visitsByLocationMap[visit.Location], visit)
+		updateVisitsMaps(visit)
 	}
 }
 
@@ -125,7 +137,7 @@ func parseUsers(fileBytes []byte) {
 	json.Unmarshal(fileBytes, &users)
 
 	for _, user := range users.Users {
-		usersMap[user.Id] = user
+		updateUsersMaps(user)
 	}
 }
 
@@ -207,7 +219,7 @@ func getVisits(id uint) (Visit, error) {
 	return Visit{}, errors.New("visit not found")
 }
 
-func getUserVisits(userId uint, filters UserVisitsFilter /*fromDate *int*/) []UserVisit {
+func getUserVisits(userId uint, filters UserVisitsFilter) []UserVisit {
 	var userVisits = make(map[int]UserVisit, 0)
 	for _, visit := range visitsByUserMap[userId] {
 		if filters.fromDate != nil && visit.Visited_at < *filters.fromDate {
@@ -420,14 +432,12 @@ func updateUser(ctx *fasthttp.RequestCtx, isNew bool) error {
 	}
 	if isNew {
 		if user.Id == 0 || len(user.First_name) == 0 || len(user.Last_name) == 0 ||
-			(user.Gender != "m" && user.Gender != "f")  {
+			(user.Gender != "m" && user.Gender != "f") {
 			return errors.New("Validation error")
 		}
 		if _, ok := usersMap[user.Id]; isNew && ok {
 			return errors.New("User already exists")
 		}
-		// todo; move to single method
-		usersMap[user.Id] = user
 	} else {
 		user := usersMap[user.Id]
 		var data map[string]interface{}
@@ -470,6 +480,10 @@ func updateUser(ctx *fasthttp.RequestCtx, isNew bool) error {
 			}
 		}
 	}
+	// Actual {"id":491,"email":"dobsinehrytnedhaporro@icloud.com","first_name":"Василий","last_name":"Данатолан","gender":"m","birth_date":-434937600}
+	// Expected {"email": "pinaro@ya.ru", "first_name": "\u0412\u0430\u0441\u0438\u043b\u0438\u0439", "last_name": "\u041b\u0443\u043a\u0430\u0442\u043e\u0432\u0438\u0447", "gender": "m", "birth_date": -434937600, "id": 491}
+	// 1543 requests (51.43%) failed
+	updateUsersMaps(user)
 
 	return nil
 }
@@ -487,8 +501,6 @@ func updateVisit(ctx *fasthttp.RequestCtx, isNew bool) error {
 		if _, ok := visitsMap[visit.Id]; isNew && ok {
 			return errors.New("Visit already exists")
 		}
-		// todo; move to single method
-		visitsMap[visit.Id] = visit
 	} else {
 		visit := visitsMap[visit.Id]
 		var data map[string]interface{}
@@ -524,6 +536,7 @@ func updateVisit(ctx *fasthttp.RequestCtx, isNew bool) error {
 			}
 		}
 	}
+	updateVisitsMaps(visit)
 
 	return nil
 }
@@ -541,8 +554,6 @@ func updateLocation(ctx *fasthttp.RequestCtx, isNew bool) error {
 		if _, ok := locationsMap[location.Id]; ok {
 			return errors.New("Location already exists")
 		}
-		// todo; move to single method
-		locationsMap[location.Id] = location
 	} else {
 		location := locationsMap[location.Id]
 		var data map[string]interface{}
@@ -579,6 +590,7 @@ func updateLocation(ctx *fasthttp.RequestCtx, isNew bool) error {
 			}
 		}
 	}
+	updateLocationMaps(location)
 
 	return nil
 }
