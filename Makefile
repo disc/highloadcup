@@ -8,6 +8,8 @@ run:
 build:
 	docker build -t golang-app .
 
+kill:
+	docker kill $$(docker ps -q) &> /dev/null;
 deploy: build
 	docker tag golang-app stor.highloadcup.ru/travels/little_eagle
 	docker push stor.highloadcup.ru/travels/little_eagle

@@ -418,52 +418,73 @@ func userVisitsRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 
 func locationRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 	path := ctx.Path()
-	if location, err := getLocation(getEntityId(path)); err != nil {
-		ctx.NotFound()
-		return nil
-	} else {
-		if ctx.IsGet() {
-			response, _ := json.Marshal(location)
-			return response
-		} else if ctx.IsPost() {
-			// create or update
-			return []byte("{}")
+	isNew := path[len(path)-1] == 'w'
+
+	location := Location{}
+	if !isNew {
+		var err error
+		if location, err = getLocation(getEntityId(path)); err != nil {
+			ctx.NotFound()
+			return nil
 		}
 	}
+
+	if ctx.IsGet() {
+		response, _ := json.Marshal(location)
+		return response
+	} else if ctx.IsPost() {
+		// create or update
+		return []byte("{}")
+	}
+
 	return nil
 }
 
 func usersRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 	path := ctx.Path()
-	if user, err := getUser(getEntityId(path)); err != nil {
-		ctx.NotFound()
-		return nil
-	} else {
-		if ctx.IsGet() {
-			response, _ := json.Marshal(user)
-			return response
-		} else if ctx.IsPost() {
-			// create or update
-			return []byte("{}")
+	isNew := path[len(path)-1] == 'w'
+
+	user := User{}
+	if !isNew {
+		var err error
+		if user, err = getUser(getEntityId(path)); err != nil {
+			ctx.NotFound()
+			return nil
 		}
 	}
+
+	if ctx.IsGet() {
+		response, _ := json.Marshal(user)
+		return response
+	} else if ctx.IsPost() {
+		// create or update
+		return []byte("{}")
+	}
+
 	return nil
 }
 
 func visitsRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 	path := ctx.Path()
-	if visit, err := getVisits(getEntityId(path)); err != nil {
-		ctx.NotFound()
-		return nil
-	} else {
-		if ctx.IsGet() {
-			response, _ := json.Marshal(visit)
-			return response
-		} else if ctx.IsPost() {
-			// create or update
-			return []byte("{}")
+	isNew := path[len(path)-1] == 'w'
+
+	visit := Visit{}
+	if !isNew {
+		var err error
+		if visit, err = getVisits(getEntityId(path)); err != nil {
+			ctx.NotFound()
+			return nil
 		}
 	}
+
+	if ctx.IsGet() {
+		response, _ := json.Marshal(visit)
+		return response
+	} else if ctx.IsPost() {
+		// create or update
+		return []byte("{}")
+	}
+
 	return nil
 }
 
