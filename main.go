@@ -32,10 +32,6 @@ var (
 	visitsByLocationMap = make(map[uint][]Visit)
 )
 
-type validator interface {
-	validate(isNew bool) bool
-}
-
 type User struct {
 	Id         uint   `json:"id"`
 	Email      string `json:"email"`
@@ -43,24 +39,6 @@ type User struct {
 	Last_name  string `json:"last_name"`
 	Gender     string `json:"gender"`
 	Birth_date int    `json:"birth_date"`
-}
-
-type UserRequestJson struct {
-	Id         *uint
-	Email      *string
-	First_name *string
-	Last_name  *string
-	Gender     *string
-	Birth_date *int
-}
-
-func (r *UserRequestJson) validate(isNew bool) bool {
-	if isNew {
-		return r.Id != nil && r.Email != nil && r.First_name != nil && r.Last_name != nil &&
-			r.Gender != nil && r.Birth_date != nil
-	} else {
-		return r.Id == nil
-	}
 }
 
 type Location struct {
@@ -71,78 +49,12 @@ type Location struct {
 	Distance uint   `json:"distance"`
 }
 
-//type Nstring string
-//
-//func (n *Nstring) UnmarshalJSON(b []byte) (err error) {
-//	if string(b) == "null" {
-//		return nil
-//	}
-//	return json.Unmarshal(b, (*string)(n))
-//}
-
-type LocationRequestJson struct {
-	Id       *uint
-	Place    string
-	Country  string
-	City     string
-	Distance uint
-}
-
-func (r *LocationRequestJson) validate(isNew bool) bool {
-	var condition bool
-	if isNew {
-		condition = r.Id != nil && &r.Place != nil && &r.Country != nil && &r.City != nil &&
-			&r.Distance != nil
-	} else {
-		condition = r.Id == nil
-	}
-
-	//REQUEST URI:/locations/308?query_id=999 BODY:{"city": null, "place": "\u0414\u043e\u043c"}
-	//RESPONSE STATUS 200 != 400. BODY {} /
-	//	46 requests (4.60%) failed
-
-	//if &r.Place != nil {
-	//	condition = condition && r.Place != ""
-	//}
-	//if &r.Country != nil {
-	//	condition = condition && r.Country != ""
-	//}
-
-	if &r.City != nil /*&& &r.City != nil*/ {
-		// {"city": null, "place": "\u0414\u043e\u043c"}
-		// {"distance": 65, "country": "\u0421\u0428\u0410"}
-		condition = condition && r.City != ""
-	}
-	//if &r.Distance != nil {
-	//	condition = condition && r.Distance > 0
-	//}
-
-	return condition
-}
-
 type Visit struct {
 	Id         uint `json:"id"`
 	Location   uint `json:"location"`
 	User       uint `json:"user"`
 	Visited_at int  `json:"visited_at"`
 	Mark       uint `json:"mark"`
-}
-
-type VisitRequestJson struct {
-	Id         *uint
-	Location   *uint
-	User       *uint
-	Visited_at *int
-	Mark       *uint
-}
-
-func (r *VisitRequestJson) validate(isNew bool) bool {
-	if isNew {
-		return r.Id != nil && r.Location != nil && r.User != nil && r.Visited_at != nil &&
-			r.Mark != nil
-	} else {
-		return r.Id == nil
-	}
 }
 
 type UserVisits struct {
