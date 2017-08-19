@@ -8,6 +8,10 @@ run:
 build:
 	docker build -t golang-app .
 
+deploy: build
+	docker tag golang-app stor.highloadcup.ru/travels/little_eagle
+	docker push stor.highloadcup.ru/travels/little_eagle
+
 app-run: app-unzip run
 
 app-unzip:

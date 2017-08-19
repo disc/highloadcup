@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"sort"
 )
 
 var (
@@ -207,7 +208,7 @@ func getVisits(id uint) (Visit, error) {
 }
 
 func getUserVisits(userId uint, filters UserVisitsFilter /*fromDate *int*/) []UserVisit {
-	var userVisits = make([]UserVisit, 0)
+	var userVisits = make(map[int]UserVisit, 0)
 	for _, visit := range visitsByUserMap[userId] {
 		if filters.fromDate != nil && visit.Visited_at < *filters.fromDate {
 			continue
@@ -221,10 +222,21 @@ func getUserVisits(userId uint, filters UserVisitsFilter /*fromDate *int*/) []Us
 		if filters.toDistance != nil && locationsMap[visit.Location].Distance > *filters.toDistance {
 			continue
 		}
-		userVisits = append(userVisits, UserVisit{visit.Mark, visit.Visited_at, locationsMap[visit.Location].Place})
+		userVisits[visit.Visited_at] = UserVisit{visit.Mark, visit.Visited_at, locationsMap[visit.Location].Place}
 	}
 
-	return userVisits
+	visitedAtList := make([]int, 0, len(userVisits))
+	for visitedAt := range userVisits {
+		visitedAtList = append(visitedAtList, visitedAt)
+	}
+	sort.Ints(visitedAtList) //sort by key
+
+	sortedUserVisits := make([]UserVisit, 0, len(userVisits))
+	for _, visitedAt := range visitedAtList {
+		sortedUserVisits = append(sortedUserVisits, userVisits[visitedAt])
+	}
+
+	return sortedUserVisits
 }
 
 func Round(val float64, roundOn float64, places int) (newVal float64) {
@@ -415,7 +427,7 @@ func locationRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 			return response
 		} else if ctx.IsPost() {
 			// create or update
-			return nil
+			return []byte("{}")
 		}
 	}
 	return nil
@@ -432,7 +444,7 @@ func usersRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 			return response
 		} else if ctx.IsPost() {
 			// create or update
-			return nil
+			return []byte("{}")
 		}
 	}
 	return nil
@@ -449,7 +461,7 @@ func visitsRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 			return response
 		} else if ctx.IsPost() {
 			// create or update
-			return nil
+			return []byte("{}")
 		}
 	}
 	return nil
@@ -484,32 +496,9 @@ func requestHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	if ctx.IsGet() && len(response) > 0 {
-		//ctx.SetBody(response)
+	if len(response) > 0 {
 		fmt.Fprintf(ctx, string(response))
 		ctx.SetContentType("application/json; charset=utf8")
 	}
 	ctx.SetConnectionClose()
-	return
-
-if path[1] == 'u' && path[5] == 's' {
-		// get user
-		if user, err := getUser(getEntityId(path)); err != nil {
-			ctx.NotFound()
-			return
-		} else {
-			response, _ = json.Marshal(user)
-		}
-	} else if path[1] == 'v' && path[6] == 's' {
-		// get visit
-		if visit, err := getVisits(getEntityId(path)); err != nil {
-			ctx.NotFound()
-			return
-		} else {
-			response, _ = json.Marshal(visit)
-		}
-	} else {
-		ctx.NotFound()
-		return
-	}
 }
