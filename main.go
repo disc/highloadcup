@@ -212,7 +212,7 @@ func getLocation(id uint) (*Location, error) {
 	return nil, errors.New("location not found")
 }
 
-func getVisits(id uint) (*Visit, error) {
+func getVisit(id uint) (*Visit, error) {
 	if visit, ok := visitsMap[id]; ok {
 		return visit, nil
 	}
@@ -425,172 +425,181 @@ func userVisitsRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 	}
 }
 
-func updateUser(ctx *fasthttp.RequestCtx, isNew bool) error {
+func createUser(ctx *fasthttp.RequestCtx) error {
 	user := User{}
 	if err := json.Unmarshal(ctx.PostBody(), &user); err != nil {
 		return err
 	}
-	if isNew {
-		if user.Id == 0 || len(user.First_name) == 0 || len(user.Last_name) == 0 ||
-			(user.Gender != "m" && user.Gender != "f") {
-			return errors.New("Validation error")
-		}
-		if _, ok := usersMap[user.Id]; isNew && ok {
-			return errors.New("User already exists")
-		}
-	} else {
-		user := usersMap[user.Id]
-		var data map[string]interface{}
-		if err := json.Unmarshal(ctx.PostBody(), &data); err != nil {
-			return err
-		}
-		if email, ok := data["email"]; ok {
-			if email != nil {
-				user.Email = email.(string)
-			} else {
-				return errors.New("Field validation error")
-			}
-		}
-		if firstName, ok := data["first_name"]; ok {
-			if firstName != nil {
-				user.First_name = firstName.(string)
-			} else {
-				return errors.New("Field validation error")
-			}
-		}
-		if lastName, ok := data["last_name"]; ok {
-			if lastName != nil {
-				user.Last_name = lastName.(string)
-			} else {
-				return errors.New("Field validation error")
-			}
-		}
-		if gender, ok := data["gender"]; ok {
-			if gender != nil && (gender.(string) == "m" || gender.(string) == "f") {
-				user.Gender = gender.(string)
-			} else {
-				return errors.New("Field validation error")
-			}
-		}
-		if birthDate, ok := data["birth_date"]; ok {
-			if birthDate != nil {
-				user.Birth_date = int(birthDate.(float64))
-			} else {
-				return errors.New("Field validation error")
-			}
-		}
+
+	if user.Id == 0 || len(user.First_name) == 0 || len(user.Last_name) == 0 ||
+		(user.Gender != "m" && user.Gender != "f") {
+		return errors.New("Validation error")
 	}
-	// Actual {"id":491,"email":"dobsinehrytnedhaporro@icloud.com","first_name":"Василий","last_name":"Данатолан","gender":"m","birth_date":-434937600}
-	// Expected {"email": "pinaro@ya.ru", "first_name": "\u0412\u0430\u0441\u0438\u043b\u0438\u0439", "last_name": "\u041b\u0443\u043a\u0430\u0442\u043e\u0432\u0438\u0447", "gender": "m", "birth_date": -434937600, "id": 491}
-	// 1543 requests (51.43%) failed
+	if _, ok := usersMap[user.Id]; ok {
+		return errors.New("User already exists")
+	}
+
 	updateUsersMaps(user)
 
 	return nil
 }
 
-func updateVisit(ctx *fasthttp.RequestCtx, isNew bool) error {
+func updateUser(ctx *fasthttp.RequestCtx, user *User) error {
+	var data map[string]interface{}
+	if err := json.Unmarshal(ctx.PostBody(), &data); err != nil {
+		return err
+	}
+	if email, ok := data["email"]; ok {
+		if email != nil {
+			user.Email = email.(string)
+		} else {
+			return errors.New("Field validation error")
+		}
+	}
+	if firstName, ok := data["first_name"]; ok {
+		if firstName != nil {
+			user.First_name = firstName.(string)
+		} else {
+			return errors.New("Field validation error")
+		}
+	}
+	if lastName, ok := data["last_name"]; ok {
+		if lastName != nil {
+			user.Last_name = lastName.(string)
+		} else {
+			return errors.New("Field validation error")
+		}
+	}
+	if gender, ok := data["gender"]; ok {
+		if gender != nil && (gender.(string) == "m" || gender.(string) == "f") {
+			user.Gender = gender.(string)
+		} else {
+			return errors.New("Field validation error")
+		}
+	}
+	if birthDate, ok := data["birth_date"]; ok {
+		if birthDate != nil {
+			user.Birth_date = int(birthDate.(float64))
+		} else {
+			return errors.New("Field validation error")
+		}
+	}
+
+	updateUsersMaps(*user)
+
+	return nil
+}
+
+func createVisit(ctx *fasthttp.RequestCtx) error {
 	visit := Visit{}
 	if err := json.Unmarshal(ctx.PostBody(), &visit); err != nil {
 		return err
 	}
 
-	if isNew {
-		if visit.Id == 0 || visit.Location == 0 || visit.User == 0 || visit.Mark > 5 {
-			return errors.New("Validation error")
-		}
-		if _, ok := visitsMap[visit.Id]; isNew && ok {
-			return errors.New("Visit already exists")
-		}
-	} else {
-		visit := visitsMap[visit.Id]
-		var data map[string]interface{}
-		if err := json.Unmarshal(ctx.PostBody(), &data); err != nil {
-			return err
-		}
-		if location, ok := data["location"]; ok {
-			if location != nil {
-				visit.Location = uint(location.(float64))
-			} else {
-				return errors.New("Field validation error")
-			}
-		}
-		if user, ok := data["user"]; ok {
-			if user != nil {
-				visit.User = uint(user.(float64))
-			} else {
-				return errors.New("Field validation error")
-			}
-		}
-		if visitedAt, ok := data["visited_at"]; ok {
-			if visitedAt != nil {
-				visit.Visited_at = int(visitedAt.(float64))
-			} else {
-				return errors.New("Field validation error")
-			}
-		}
-		if mark, ok := data["mark"]; ok {
-			if mark != nil && uint(mark.(float64)) <= 5 {
-				visit.Mark = uint(mark.(float64))
-			} else {
-				return errors.New("Field validation error")
-			}
-		}
+	if visit.Id == 0 || visit.Location == 0 || visit.User == 0 || visit.Mark > 5 {
+		return errors.New("Validation error")
 	}
+	if _, ok := visitsMap[visit.Id]; ok {
+		return errors.New("Visit already exists")
+	}
+
 	updateVisitsMaps(visit)
 
 	return nil
 }
 
-func updateLocation(ctx *fasthttp.RequestCtx, isNew bool) error {
+func updateVisit(ctx *fasthttp.RequestCtx, visit *Visit) error {
+	var data map[string]interface{}
+	if err := json.Unmarshal(ctx.PostBody(), &data); err != nil {
+		return err
+	}
+	if location, ok := data["location"]; ok {
+		if location != nil {
+			visit.Location = uint(location.(float64))
+		} else {
+			return errors.New("Field validation error")
+		}
+	}
+	if user, ok := data["user"]; ok {
+		if user != nil {
+			visit.User = uint(user.(float64))
+		} else {
+			return errors.New("Field validation error")
+		}
+	}
+	if visitedAt, ok := data["visited_at"]; ok {
+		if visitedAt != nil {
+			visit.Visited_at = int(visitedAt.(float64))
+		} else {
+			return errors.New("Field validation error")
+		}
+	}
+	if mark, ok := data["mark"]; ok {
+		if mark != nil && uint(mark.(float64)) <= 5 {
+			visit.Mark = uint(mark.(float64))
+		} else {
+			return errors.New("Field validation error")
+		}
+	}
+
+	updateVisitsMaps(*visit)
+
+	return nil
+}
+
+func createLocation(ctx *fasthttp.RequestCtx) error {
 	location := Location{}
 	if err := json.Unmarshal(ctx.PostBody(), &location); err != nil {
 		return err
 	}
-	if isNew {
-		if location.Id == 0 || len(location.Place) == 0 || len(location.Country) == 0 ||
-			len(location.City) == 0 {
-			return errors.New("Validation error")
-		}
-		if _, ok := locationsMap[location.Id]; ok {
-			return errors.New("Location already exists")
-		}
-	} else {
-		location := locationsMap[location.Id]
-		var data map[string]interface{}
-		if err := json.Unmarshal(ctx.PostBody(), &data); err != nil {
-			return err
-		}
-		if place, ok := data["place"]; ok {
-			if place != nil {
-				location.Place = place.(string)
-			} else {
-				return errors.New("Field validation error")
-			}
-		}
-		if country, ok := data["country"]; ok {
-			if country != nil {
-				location.Country = country.(string)
-			} else {
-				return errors.New("Field validation error")
-			}
-		}
-		if city, ok := data["city"]; ok {
-			if city != nil {
-				location.City = city.(string)
-			} else {
-				return errors.New("Field validation error")
-			}
-		}
-		if distance, ok := data["distance"]; ok {
-			if distance != nil {
-				//fmt.Println(distance.(float64))
-				location.Distance = uint(distance.(float64))
-			} else {
-				return errors.New("Field validation error")
-			}
+	if location.Id == 0 || len(location.Place) == 0 || len(location.Country) == 0 ||
+		len(location.City) == 0 {
+		return errors.New("Validation error")
+	}
+	if _, ok := locationsMap[location.Id]; ok {
+		return errors.New("Location already exists")
+	}
+
+	updateLocationMaps(location)
+
+	return nil
+}
+
+func updateLocation(ctx *fasthttp.RequestCtx, location *Location) error {
+	var data map[string]interface{}
+	if err := json.Unmarshal(ctx.PostBody(), &data); err != nil {
+		return err
+	}
+	if place, ok := data["place"]; ok {
+		if place != nil {
+			location.Place = place.(string)
+		} else {
+			return errors.New("Field validation error")
 		}
 	}
-	updateLocationMaps(location)
+	if country, ok := data["country"]; ok {
+		if country != nil {
+			location.Country = country.(string)
+		} else {
+			return errors.New("Field validation error")
+		}
+	}
+	if city, ok := data["city"]; ok {
+		if city != nil {
+			location.City = city.(string)
+		} else {
+			return errors.New("Field validation error")
+		}
+	}
+	if distance, ok := data["distance"]; ok {
+		if distance != nil {
+			//fmt.Println(distance.(float64))
+			location.Distance = uint(distance.(float64))
+		} else {
+			return errors.New("Field validation error")
+		}
+	}
+	updateLocationMaps(*location)
 
 	return nil
 }
@@ -599,8 +608,25 @@ func locationRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 	path := ctx.Path()
 	isNew := path[len(path)-1] == 'w'
 
+	entityId := getEntityId(path)
+
+	var (
+		location *Location
+		err error
+	)
+
+	if location, err = getLocation(entityId); !isNew && err != nil {
+		ctx.NotFound()
+		return nil
+	}
+
+	if ctx.IsGet() {
+		response, _ := json.Marshal(location)
+		return response
+	}
+
 	if !isNew {
-		if location, err := getLocation(getEntityId(path)); err != nil {
+		if location, err := getLocation(entityId); err != nil {
 			ctx.NotFound()
 			return nil
 		} else if ctx.IsGet() {
@@ -610,11 +636,18 @@ func locationRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 	}
 
 	if ctx.IsPost() {
-		// create or update
-		if err := updateLocation(ctx, isNew); err != nil {
-			ctx.Error("{}", 400)
+		if isNew {
+			if err := createLocation(ctx); err != nil {
+				ctx.Error("{}", 400)
+			} else {
+				return []byte("{}")
+			}
 		} else {
-			return []byte("{}")
+			if err := updateLocation(ctx, location); err != nil {
+				ctx.Error("{}", 400)
+			} else {
+				return []byte("{}")
+			}
 		}
 	}
 
@@ -625,8 +658,25 @@ func usersRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 	path := ctx.Path()
 	isNew := path[len(path)-1] == 'w'
 
+	entityId := getEntityId(path)
+
+	var (
+		user *User
+		err error
+	)
+
+	if user, err = getUser(entityId); !isNew && err != nil {
+		ctx.NotFound()
+		return nil
+	}
+
+	if ctx.IsGet() {
+		response, _ := json.Marshal(user)
+		return response
+	}
+
 	if !isNew {
-		if user, err := getUser(getEntityId(path)); err != nil {
+		if user, err := getUser(entityId); err != nil {
 			ctx.NotFound()
 			return nil
 		} else if ctx.IsGet() {
@@ -636,11 +686,18 @@ func usersRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 	}
 
 	if ctx.IsPost() {
-		// create or update
-		if err := updateUser(ctx, isNew); err != nil {
-			ctx.Error("{}", 400)
+		if isNew {
+			if err := createUser(ctx); err != nil {
+				ctx.Error("{}", 400)
+			} else {
+				return []byte("{}")
+			}
 		} else {
-			return []byte("{}")
+			if err := updateUser(ctx, user); err != nil {
+				ctx.Error("{}", 400)
+			} else {
+				return []byte("{}")
+			}
 		}
 	}
 
@@ -651,8 +708,25 @@ func visitsRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 	path := ctx.Path()
 	isNew := path[len(path)-1] == 'w'
 
+	entityId := getEntityId(path)
+
+	var (
+		visit *Visit
+		err error
+	)
+
+	if visit, err = getVisit(entityId); !isNew && err != nil {
+		ctx.NotFound()
+		return nil
+	}
+
+	if ctx.IsGet() {
+		response, _ := json.Marshal(visit)
+		return response
+	}
+
 	if !isNew {
-		if visit, err := getVisits(getEntityId(path)); err != nil {
+		if visit, err := getVisit(entityId); err != nil {
 			ctx.NotFound()
 			return nil
 		} else if ctx.IsGet() {
@@ -662,11 +736,18 @@ func visitsRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 	}
 
 	if ctx.IsPost() {
-		// create or update
-		if err := updateVisit(ctx, isNew); err != nil {
-			ctx.Error("{}", 400)
+		if isNew {
+			if err := createVisit(ctx); err != nil {
+				ctx.Error("{}", 400)
+			} else {
+				return []byte("{}")
+			}
 		} else {
-			return []byte("{}")
+			if err := updateVisit(ctx, visit); err != nil {
+				ctx.Error("{}", 400)
+			} else {
+				return []byte("{}")
+			}
 		}
 	}
 
