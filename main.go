@@ -26,8 +26,8 @@ var (
 	usersMap     = make(map[uint]*User)
 	visitsMap    = make(map[uint]*Visit)
 
-	visitsByUserMap     = make(map[uint][]Visit)
-	visitsByLocationMap = make(map[uint][]Visit)
+	visitsByUserMap     = make(map[uint][]*Visit)
+	visitsByLocationMap = make(map[uint][]*Visit)
 )
 
 type User struct {
@@ -101,11 +101,45 @@ func updateLocationMaps(location Location) {
 	locationsMap[location.Id] = &location
 }
 
-func updateVisitsMaps(visit Visit) {
-	visitsMap[visit.Id] = &visit
+func updateVisitsMaps(visit Visit, prevRef *Visit) {
+	var (
+		prevVisit *Visit
+		ok bool
+		userChanged = false
+		locationChanged = false
+	)
+	if prevRef == nil {
+		visitsMap[visit.Id] = &visit
+	} else {
+		if prevVisit, ok = visitsMap[visit.Id]; ok {
+			if prevVisit.User != visit.User {
+				userChanged = true
+				for key, visit := range visitsByUserMap[prevVisit.User] {
+					if prevVisit == visit  {
+						array := visitsByUserMap[prevVisit.User]
+						visitsByUserMap[prevVisit.User] = append(array[:key], array[key+1:]...)
+					}
+				}
+			}
+			if prevVisit.Location != visit.Location {
+				locationChanged = true
+				for key, visit := range visitsByLocationMap[prevVisit.Location] {
+					if visit == prevVisit {
+						array := visitsByLocationMap[prevVisit.Location]
+						visitsByLocationMap[prevVisit.Location] = append(array[:key], array[key+1:]...)
+					}
+				}
+			}
+		}
+		*prevRef = visit
+	}
 
-	visitsByUserMap[visit.User] = append(visitsByUserMap[visit.User], visit)
-	visitsByLocationMap[visit.Location] = append(visitsByLocationMap[visit.Location], visit)
+	if prevRef == nil || userChanged {
+		visitsByUserMap[visit.User] = append(visitsByUserMap[visit.User], &visit)
+	}
+	if prevRef == nil || locationChanged {
+		visitsByLocationMap[visit.Location] = append(visitsByLocationMap[visit.Location], &visit)
+	}
 }
 
 func updateUsersMaps(user User) {
@@ -121,7 +155,7 @@ func parseVisits(fileBytes []byte) {
 	json.Unmarshal(fileBytes, &visits)
 
 	for _, visit := range visits.Visits {
-		updateVisitsMaps(visit)
+		updateVisitsMaps(visit, nil)
 	}
 }
 
@@ -446,43 +480,47 @@ func updateUser(ctx *fasthttp.RequestCtx, user *User) error {
 	if err := json.Unmarshal(ctx.PostBody(), &data); err != nil {
 		return err
 	}
+
+	var updatedUser User
+	updatedUser = *user
+
 	if email, ok := data["email"]; ok {
 		if email != nil {
-			user.Email = email.(string)
+			updatedUser.Email = email.(string)
 		} else {
 			return errors.New("Field validation error")
 		}
 	}
 	if firstName, ok := data["first_name"]; ok {
 		if firstName != nil {
-			user.First_name = firstName.(string)
+			updatedUser.First_name = firstName.(string)
 		} else {
 			return errors.New("Field validation error")
 		}
 	}
 	if lastName, ok := data["last_name"]; ok {
 		if lastName != nil {
-			user.Last_name = lastName.(string)
+			updatedUser.Last_name = lastName.(string)
 		} else {
 			return errors.New("Field validation error")
 		}
 	}
 	if gender, ok := data["gender"]; ok {
 		if gender != nil && (gender.(string) == "m" || gender.(string) == "f") {
-			user.Gender = gender.(string)
+			updatedUser.Gender = gender.(string)
 		} else {
 			return errors.New("Field validation error")
 		}
 	}
 	if birthDate, ok := data["birth_date"]; ok {
 		if birthDate != nil {
-			user.Birth_date = int(birthDate.(float64))
+			updatedUser.Birth_date = int(birthDate.(float64))
 		} else {
 			return errors.New("Field validation error")
 		}
 	}
 
-	updateUsersMaps(*user)
+	updateUsersMaps(updatedUser)
 
 	return nil
 }
@@ -500,7 +538,7 @@ func createVisit(ctx *fasthttp.RequestCtx) error {
 		return errors.New("Visit already exists")
 	}
 
-	updateVisitsMaps(visit)
+	updateVisitsMaps(visit, nil)
 
 	return nil
 }
@@ -510,36 +548,39 @@ func updateVisit(ctx *fasthttp.RequestCtx, visit *Visit) error {
 	if err := json.Unmarshal(ctx.PostBody(), &data); err != nil {
 		return err
 	}
+	var updatedVisit Visit
+	updatedVisit = *visit
+
 	if location, ok := data["location"]; ok {
 		if location != nil {
-			visit.Location = uint(location.(float64))
+			updatedVisit.Location = uint(location.(float64))
 		} else {
 			return errors.New("Field validation error")
 		}
 	}
 	if user, ok := data["user"]; ok {
 		if user != nil {
-			visit.User = uint(user.(float64))
+			updatedVisit.User = uint(user.(float64))
 		} else {
 			return errors.New("Field validation error")
 		}
 	}
 	if visitedAt, ok := data["visited_at"]; ok {
 		if visitedAt != nil {
-			visit.Visited_at = int(visitedAt.(float64))
+			updatedVisit.Visited_at = int(visitedAt.(float64))
 		} else {
 			return errors.New("Field validation error")
 		}
 	}
 	if mark, ok := data["mark"]; ok {
 		if mark != nil && uint(mark.(float64)) <= 5 {
-			visit.Mark = uint(mark.(float64))
+			updatedVisit.Mark = uint(mark.(float64))
 		} else {
 			return errors.New("Field validation error")
 		}
 	}
 
-	updateVisitsMaps(*visit)
+	updateVisitsMaps(updatedVisit, visit)
 
 	return nil
 }
@@ -567,23 +608,27 @@ func updateLocation(ctx *fasthttp.RequestCtx, location *Location) error {
 	if err := json.Unmarshal(ctx.PostBody(), &data); err != nil {
 		return err
 	}
+
+	var updatedLocation Location
+	updatedLocation = *location
+
 	if place, ok := data["place"]; ok {
 		if place != nil {
-			location.Place = place.(string)
+			updatedLocation.Place = place.(string)
 		} else {
 			return errors.New("Field validation error")
 		}
 	}
 	if country, ok := data["country"]; ok {
 		if country != nil {
-			location.Country = country.(string)
+			updatedLocation.Country = country.(string)
 		} else {
 			return errors.New("Field validation error")
 		}
 	}
 	if city, ok := data["city"]; ok {
 		if city != nil {
-			location.City = city.(string)
+			updatedLocation.City = city.(string)
 		} else {
 			return errors.New("Field validation error")
 		}
@@ -591,12 +636,12 @@ func updateLocation(ctx *fasthttp.RequestCtx, location *Location) error {
 	if distance, ok := data["distance"]; ok {
 		if distance != nil {
 			//fmt.Println(distance.(float64))
-			location.Distance = uint(distance.(float64))
+			updatedLocation.Distance = uint(distance.(float64))
 		} else {
 			return errors.New("Field validation error")
 		}
 	}
-	updateLocationMaps(*location)
+	updateLocationMaps(updatedLocation)
 
 	return nil
 }
