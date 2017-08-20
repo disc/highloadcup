@@ -6,7 +6,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /go/src/github.com/disc/highloadcup
 COPY . .
-RUN rm -rf ./data/
 
 RUN go-wrapper download   # "go get -d -v ./..."
 RUN go-wrapper install    # "go install -v ./..."
