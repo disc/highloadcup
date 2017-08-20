@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"sync"
 )
 
 var (
@@ -28,6 +29,8 @@ var (
 
 	visitsByUserMap     = make(map[uint][]*Visit)
 	visitsByLocationMap = make(map[uint][]*Visit)
+
+	mutex = &sync.Mutex{}
 
 	//usersVisitsByVisitedAtMap = make(map[uint]map[int]*Visit)
 )
@@ -479,9 +482,10 @@ func createUser(ctx *fasthttp.RequestCtx) error {
 	}
 
 	ctx.Success("application/json", []byte("{}"))
-
 	go func() {
+		mutex.Lock()
 		updateUsersMaps(user)
+		mutex.Unlock()
 	}()
 
 	return nil
@@ -533,9 +537,10 @@ func updateUser(ctx *fasthttp.RequestCtx, user *User) error {
 	}
 
 	ctx.Success("application/json", []byte("{}"))
-
 	go func() {
+		mutex.Lock()
 		updateUsersMaps(updatedUser)
+		mutex.Unlock()
 	}()
 
 	return nil
@@ -555,9 +560,10 @@ func createVisit(ctx *fasthttp.RequestCtx) error {
 	}
 
 	ctx.Success("application/json", []byte("{}"))
-
 	go func() {
+		mutex.Lock()
 		updateVisitsMaps(visit, nil)
+		mutex.Unlock()
 	}()
 
 	return nil
@@ -602,7 +608,9 @@ func updateVisit(ctx *fasthttp.RequestCtx, visit *Visit) error {
 
 	ctx.Success("application/json", []byte("{}"))
 	go func() {
+		mutex.Lock()
 		updateVisitsMaps(updatedVisit, visit)
+		mutex.Unlock()
 	}()
 
 	return nil
@@ -623,7 +631,9 @@ func createLocation(ctx *fasthttp.RequestCtx) error {
 
 	ctx.Success("application/json", []byte("{}"))
 	go func() {
+		mutex.Lock()
 		updateLocationMaps(location)
+		mutex.Unlock()
 	}()
 
 	return nil
@@ -669,7 +679,9 @@ func updateLocation(ctx *fasthttp.RequestCtx, location *Location) error {
 
 	ctx.Success("application/json", []byte("{}"))
 	go func() {
+		mutex.Lock()
 		updateLocationMaps(updatedLocation)
+		mutex.Unlock()
 	}()
 
 	return nil
