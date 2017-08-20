@@ -103,9 +103,9 @@ func updateLocationMaps(location Location) {
 
 func updateVisitsMaps(visit Visit, prevRef *Visit) {
 	var (
-		prevVisit *Visit
-		ok bool
-		userChanged = false
+		prevVisit       *Visit
+		ok              bool
+		userChanged     = false
 		locationChanged = false
 	)
 	if prevRef == nil {
@@ -115,7 +115,7 @@ func updateVisitsMaps(visit Visit, prevRef *Visit) {
 			if prevVisit.User != visit.User {
 				userChanged = true
 				for key, visit := range visitsByUserMap[prevVisit.User] {
-					if prevVisit == visit  {
+					if prevVisit == visit {
 						array := visitsByUserMap[prevVisit.User]
 						visitsByUserMap[prevVisit.User] = append(array[:key], array[key+1:]...)
 					}
@@ -654,7 +654,7 @@ func locationRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 
 	var (
 		location *Location
-		err error
+		err      error
 	)
 
 	if location, err = getLocation(entityId); !isNew && err != nil {
@@ -704,7 +704,7 @@ func usersRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 
 	var (
 		user *User
-		err error
+		err  error
 	)
 
 	if user, err = getUser(entityId); !isNew && err != nil {
@@ -754,7 +754,7 @@ func visitsRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 
 	var (
 		visit *Visit
-		err error
+		err   error
 	)
 
 	if visit, err = getVisit(entityId); !isNew && err != nil {
