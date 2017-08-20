@@ -28,6 +28,8 @@ var (
 
 	visitsByUserMap     = make(map[uint][]*Visit)
 	visitsByLocationMap = make(map[uint][]*Visit)
+
+	//usersVisitsByVisitedAtMap = make(map[uint]map[int]*Visit)
 )
 
 type User struct {
@@ -135,6 +137,12 @@ func updateVisitsMaps(visit Visit, prevRef *Visit) {
 	}
 
 	if prevRef == nil || userChanged {
+		//if _, ok := usersVisitsByVisitedAtMap[visit.User]; !ok {
+		//	usersVisitsByVisitedAtMap[visit.User] = make(map[int]*Visit)
+		//}
+		//
+		//usersVisitsByVisitedAtMap[visit.User][visit.Visited_at] = &visit
+
 		visitsByUserMap[visit.User] = append(visitsByUserMap[visit.User], &visit)
 	}
 	if prevRef == nil || locationChanged {
@@ -470,7 +478,11 @@ func createUser(ctx *fasthttp.RequestCtx) error {
 		return errors.New("User already exists")
 	}
 
-	updateUsersMaps(user)
+	ctx.Success("application/json", []byte("{}"))
+
+	go func() {
+		updateUsersMaps(user)
+	}()
 
 	return nil
 }
@@ -520,7 +532,11 @@ func updateUser(ctx *fasthttp.RequestCtx, user *User) error {
 		}
 	}
 
-	updateUsersMaps(updatedUser)
+	ctx.Success("application/json", []byte("{}"))
+
+	go func() {
+		updateUsersMaps(updatedUser)
+	}()
 
 	return nil
 }
@@ -538,7 +554,11 @@ func createVisit(ctx *fasthttp.RequestCtx) error {
 		return errors.New("Visit already exists")
 	}
 
-	updateVisitsMaps(visit, nil)
+	ctx.Success("application/json", []byte("{}"))
+
+	go func() {
+		updateVisitsMaps(visit, nil)
+	}()
 
 	return nil
 }
@@ -580,7 +600,10 @@ func updateVisit(ctx *fasthttp.RequestCtx, visit *Visit) error {
 		}
 	}
 
-	updateVisitsMaps(updatedVisit, visit)
+	ctx.Success("application/json", []byte("{}"))
+	go func() {
+		updateVisitsMaps(updatedVisit, visit)
+	}()
 
 	return nil
 }
@@ -598,7 +621,10 @@ func createLocation(ctx *fasthttp.RequestCtx) error {
 		return errors.New("Location already exists")
 	}
 
-	updateLocationMaps(location)
+	ctx.Success("application/json", []byte("{}"))
+	go func() {
+		updateLocationMaps(location)
+	}()
 
 	return nil
 }
@@ -635,13 +661,16 @@ func updateLocation(ctx *fasthttp.RequestCtx, location *Location) error {
 	}
 	if distance, ok := data["distance"]; ok {
 		if distance != nil {
-			//fmt.Println(distance.(float64))
 			updatedLocation.Distance = uint(distance.(float64))
 		} else {
 			return errors.New("Field validation error")
 		}
 	}
-	updateLocationMaps(updatedLocation)
+
+	ctx.Success("application/json", []byte("{}"))
+	go func() {
+		updateLocationMaps(updatedLocation)
+	}()
 
 	return nil
 }
@@ -681,14 +710,10 @@ func locationRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 		if isNew {
 			if err := createLocation(ctx); err != nil {
 				ctx.Error("{}", 400)
-			} else {
-				return []byte("{}")
 			}
 		} else {
 			if err := updateLocation(ctx, location); err != nil {
 				ctx.Error("{}", 400)
-			} else {
-				return []byte("{}")
 			}
 		}
 	}
@@ -731,14 +756,10 @@ func usersRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 		if isNew {
 			if err := createUser(ctx); err != nil {
 				ctx.Error("{}", 400)
-			} else {
-				return []byte("{}")
 			}
 		} else {
 			if err := updateUser(ctx, user); err != nil {
 				ctx.Error("{}", 400)
-			} else {
-				return []byte("{}")
 			}
 		}
 	}
@@ -781,14 +802,10 @@ func visitsRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 		if isNew {
 			if err := createVisit(ctx); err != nil {
 				ctx.Error("{}", 400)
-			} else {
-				return []byte("{}")
 			}
 		} else {
 			if err := updateVisit(ctx, visit); err != nil {
 				ctx.Error("{}", 400)
-			} else {
-				return []byte("{}")
 			}
 		}
 	}

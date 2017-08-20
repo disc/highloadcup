@@ -25,3 +25,6 @@ app-run: app-unzip
 app-unzip:
 	mkdir -p $$(pwd)/data/ > /dev/null
 	unzip -oq /tmp/data/data.zip -d $$(pwd)/data/
+
+bench:
+	go test -bench=.
