@@ -26,8 +26,6 @@ var (
 	usersMap     = make(map[uint]*User)
 	visitsMap    = make(map[uint]*Visit)
 
-	locationsCountryMap = make(map[string][]uint)
-
 	visitsByUserMap     = make(map[uint][]Visit)
 	visitsByLocationMap = make(map[uint][]Visit)
 )
@@ -101,7 +99,6 @@ func parseLocations(fileBytes []byte) {
 
 func updateLocationMaps(location Location) {
 	locationsMap[location.Id] = &location
-	locationsCountryMap[location.Country] = append(locationsCountryMap[location.Country], location.Id)
 }
 
 func updateVisitsMaps(visit Visit) {
