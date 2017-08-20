@@ -2,9 +2,7 @@ run-local: build
 #	if $$(docker ps -q); then
 #		docker kill $$(docker ps -q) &> /dev/null;
 #	fi
-	docker run --rm -p 8080:80 -v ~/Downloads/data5.zip:/tmp/data/data.zip -t golang-app
-run:
-	app
+	docker run --rm -p 8080:80 -v ~/Downloads/data-full.zip:/tmp/data/data.zip -t golang-app
 build:
 	docker build -t golang-app .
 
@@ -22,8 +20,8 @@ test-phase-3:
 	$$GOBIN/highloadcup_tester -addr http://127.0.0.1:8080 -hlcupdocs $$HOME/workspace/hlcupdocs/data/FULL/ -test -phase 3
 tests: test-phase-1 test-phase-2 test-phase-3
 
-app-run: app-unzip run
-
+app-run: app-unzip
+	app
 app-unzip:
 	mkdir -p $$(pwd)/data/ > /dev/null
 	unzip -oq /tmp/data/data.zip -d $$(pwd)/data/
