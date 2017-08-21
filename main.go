@@ -83,7 +83,7 @@ type LocationAvgFilter struct {
 	toDate   *int
 	fromAge  *int
 	toAge    *int
-	gender   *string
+	gender   *[]byte
 }
 
 func parseLocations(fileBytes []byte) {
@@ -328,7 +328,7 @@ func getLocationAvg(locationId uint, filters LocationAvgFilter) float64 {
 				continue
 			}
 		}
-		if filters.gender != nil && *filters.gender != usersMap[visit.User].Gender {
+		if filters.gender != nil && string(*filters.gender) != usersMap[visit.User].Gender {
 			continue
 		}
 		marksSum += visit.Mark
@@ -402,7 +402,7 @@ func locationAvgRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 			}
 		}
 		if gender := query.Has("gender"); gender {
-			if genderStr := string(query.Peek("gender")); len(genderStr) > 0 && (genderStr == "m" || genderStr == "f") {
+			if genderStr := query.Peek("gender"); len(genderStr) > 0 && bytes.ContainsAny(genderStr, "mf") {
 				filters.gender = &genderStr
 			} else {
 				ctx.Error("{}", 400)
@@ -798,14 +798,8 @@ func visitsRequestHandler(ctx *fasthttp.RequestCtx) []byte {
 	return nil
 }
 
-func timeTrack(start time.Time, name string) {
-	elapsed := time.Since(start)
-	log.Printf("%s took %s", name, elapsed)
-}
-
 func requestHandler(ctx *fasthttp.RequestCtx) {
 	path := ctx.Path()
-	defer timeTrack(time.Now(), "getting path")
 
 	var response []byte
 

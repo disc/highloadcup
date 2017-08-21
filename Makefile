@@ -1,7 +1,7 @@
 build:
 	docker build -t golang-app .
 run-local: build
-	docker run --rm -p 8080:80 -v ~/Downloads/data-full.zip:/tmp/data/data.zip -t golang-app
+	docker run --rm -p 8080:80 -v ~/Downloads/data-train.zip:/tmp/data/data.zip -t golang-app
 deploy: build
 	docker tag golang-app stor.highloadcup.ru/travels/little_eagle
 	docker push stor.highloadcup.ru/travels/little_eagle
