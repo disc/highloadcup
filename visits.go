@@ -28,7 +28,44 @@ func (v *VisitsMap) Get(id uint) *Visit {
 }
 
 func (v *VisitsMap) Update(visit Visit, prevVisit *Visit) {
-	updateVisitsMaps(visit, prevVisit)
+	var (
+		userChanged     = false
+		locationChanged = false
+	)
+	if prevVisit == nil {
+		v.Lock()
+		visitsMap.visits[visit.Id] = &visit
+		v.Unlock()
+	} else {
+		if prevVisit.User != visit.User {
+			userChanged = true
+			for key, visit := range visitsByUserMap[prevVisit.User] {
+				if prevVisit == visit {
+					array := visitsByUserMap[prevVisit.User]
+					visitsByUserMap[prevVisit.User] = append(array[:key], array[key+1:]...)
+				}
+			}
+		}
+		if prevVisit.Location != visit.Location {
+			locationChanged = true
+			for key, visit := range visitsByLocationMap[prevVisit.Location] {
+				if visit == prevVisit {
+					array := visitsByLocationMap[prevVisit.Location]
+					visitsByLocationMap[prevVisit.Location] = append(array[:key], array[key+1:]...)
+				}
+			}
+		}
+		v.Lock()
+		*visitsMap.visits[visit.Id] = visit
+		v.Unlock()
+	}
+
+	if prevVisit == nil || userChanged {
+		visitsByUserMap[visit.User] = append(visitsByUserMap[visit.User], &visit)
+	}
+	if prevVisit == nil || locationChanged {
+		visitsByLocationMap[visit.Location] = append(visitsByLocationMap[visit.Location], &visit)
+	}
 }
 
 func getVisitRequestHandler(ctx *fasthttp.RequestCtx, entityId uint) {
@@ -128,35 +165,31 @@ func updateVisit(postData []byte, visit Visit) (*Visit, error) {
 
 func updateVisitsMaps(visit Visit, prevRef *Visit) {
 	var (
-		prevVisit       *Visit
-		ok              bool
 		userChanged     = false
 		locationChanged = false
 	)
 	if prevRef == nil {
 		visitsMap.visits[visit.Id] = &visit
 	} else {
-		if prevVisit, ok = visitsMap.visits[visit.Id]; ok {
-			if prevVisit.User != visit.User {
-				userChanged = true
-				for key, visit := range visitsByUserMap[prevVisit.User] {
-					if prevVisit == visit {
-						array := visitsByUserMap[prevVisit.User]
-						visitsByUserMap[prevVisit.User] = append(array[:key], array[key+1:]...)
-					}
-				}
-			}
-			if prevVisit.Location != visit.Location {
-				locationChanged = true
-				for key, visit := range visitsByLocationMap[prevVisit.Location] {
-					if visit == prevVisit {
-						array := visitsByLocationMap[prevVisit.Location]
-						visitsByLocationMap[prevVisit.Location] = append(array[:key], array[key+1:]...)
-					}
+		if prevRef.User != visit.User {
+			userChanged = true
+			for key, visit := range visitsByUserMap[prevRef.User] {
+				if prevRef == visit {
+					array := visitsByUserMap[prevRef.User]
+					visitsByUserMap[prevRef.User] = append(array[:key], array[key+1:]...)
 				}
 			}
 		}
-		*prevRef = visit
+		if prevRef.Location != visit.Location {
+			locationChanged = true
+			for key, visit := range visitsByLocationMap[prevRef.Location] {
+				if visit == prevRef {
+					array := visitsByLocationMap[prevRef.Location]
+					visitsByLocationMap[prevRef.Location] = append(array[:key], array[key+1:]...)
+				}
+			}
+		}
+		*visitsMap.visits[visit.Id] = visit
 	}
 
 	if prevRef == nil || userChanged {
