@@ -27,10 +27,8 @@ func (v *VisitsMap) Get(id uint) *Visit {
 	return v.visits[id]
 }
 
-func (v *VisitsMap) Update(visit Visit) {
-	v.Lock()
-	v.visits[visit.Id] = &visit
-	v.Unlock()
+func (v *VisitsMap) Update(visit Visit, prevVisit *Visit) {
+	updateVisitsMaps(visit, prevVisit)
 }
 
 func getVisitRequestHandler(ctx *fasthttp.RequestCtx, entityId uint) {
@@ -47,7 +45,9 @@ func createVisitRequestHandler(ctx *fasthttp.RequestCtx) {
 		ctx.SetConnectionClose()
 		ctx.Success("application/json", []byte("{}"))
 
-		updateVisitsMaps(*visit, nil)
+		go func() {
+			visitsMap.Update(*visit, nil)
+		}()
 		return
 	}
 	ctx.Error("{}", 400)
@@ -58,7 +58,10 @@ func updateVisitRequestHandler(ctx *fasthttp.RequestCtx, entityId uint) {
 		if updatedVisit, err := updateVisit(ctx.PostBody(), *visit); err == nil {
 			ctx.SetConnectionClose()
 			ctx.Success("application/json", []byte("{}"))
-			updateVisitsMaps(*updatedVisit, visit)
+
+			go func() {
+				visitsMap.Update(*updatedVisit, visit)
+			}()
 			return
 		}
 		ctx.Error("{}", 400)
@@ -125,13 +128,15 @@ func updateVisit(postData []byte, visit Visit) (*Visit, error) {
 
 func updateVisitsMaps(visit Visit, prevRef *Visit) {
 	var (
+		prevVisit       *Visit
+		ok              bool
 		userChanged     = false
 		locationChanged = false
 	)
 	if prevRef == nil {
-		visitsMap.Update(visit)
+		visitsMap.visits[visit.Id] = &visit
 	} else {
-		if prevVisit := visitsMap.Get(visit.Id); prevVisit != nil {
+		if prevVisit, ok = visitsMap.visits[visit.Id]; ok {
 			if prevVisit.User != visit.User {
 				userChanged = true
 				for key, visit := range visitsByUserMap[prevVisit.User] {

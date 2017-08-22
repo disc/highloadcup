@@ -23,8 +23,6 @@ var (
 
 	visitsByUserMap     = make(map[uint][]*Visit)
 	visitsByLocationMap = make(map[uint][]*Visit)
-
-	//usersVisitsByVisitedAtMap = make(map[uint]map[int]*Visit)
 )
 
 func parseLocations(fileBytes []byte) {
@@ -49,7 +47,7 @@ func parseVisits(fileBytes []byte) {
 	json.Unmarshal(fileBytes, &visits)
 
 	for _, visit := range visits.Visits {
-		updateVisitsMaps(visit, nil)
+		visitsMap.Update(visit, nil)
 	}
 }
 
