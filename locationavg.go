@@ -20,7 +20,7 @@ type LocationAvgFilter struct {
 }
 
 func locationAvgRequestHandler(ctx *fasthttp.RequestCtx, locationId uint, query *fasthttp.Args) {
-	if _, ok := locationsMap[locationId]; !ok {
+	if location := locationsMap.Get(locationId); location == nil {
 		ctx.NotFound()
 		return
 	}
@@ -76,15 +76,16 @@ func getLocationAvg(locationId uint, filters LocationAvgFilter) float64 {
 		if filters.toDate != nil && visit.Visited_at > *filters.toDate {
 			continue
 		}
+		user := usersMap.Get(visit.User)
 		if filters.fromAge != nil || filters.toAge != nil {
-			if filters.fromAge != nil && usersMap[visit.User].Birth_date > getTimestampByAge(filters.fromAge) {
+			if filters.fromAge != nil && user.Birth_date > getTimestampByAge(filters.fromAge) {
 				continue
 			}
-			if filters.toAge != nil && usersMap[visit.User].Birth_date < getTimestampByAge(filters.toAge) {
+			if filters.toAge != nil && user.Birth_date < getTimestampByAge(filters.toAge) {
 				continue
 			}
 		}
-		if filters.gender != nil && string(*filters.gender) != usersMap[visit.User].Gender {
+		if filters.gender != nil && string(*filters.gender) != user.Gender {
 			continue
 		}
 		marksSum += visit.Mark

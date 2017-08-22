@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/valyala/fasthttp"
+	"sync"
 )
 
 type User struct {
@@ -15,8 +16,26 @@ type User struct {
 	Birth_date int    `json:"birth_date"`
 }
 
+type UsersMap struct {
+	users map[uint]*User
+	sync.RWMutex
+}
+
+func (u *UsersMap) Get(id uint) *User {
+	u.RLock()
+	defer u.RUnlock()
+
+	return u.users[id]
+}
+
+func (u *UsersMap) Update(user User) {
+	u.Lock()
+	u.users[user.Id] = &user
+	u.Unlock()
+}
+
 func getUserRequestHandler(ctx *fasthttp.RequestCtx, entityId uint) {
-	if user, ok := usersMap[entityId]; ok {
+	if user := usersMap.Get(entityId); user != nil {
 		response, _ := json.Marshal(user)
 		ctx.Success("application/json", response)
 		return
@@ -29,7 +48,9 @@ func createUserRequestHandler(ctx *fasthttp.RequestCtx) {
 		ctx.SetConnectionClose()
 		ctx.Success("application/json", []byte("{}"))
 
-		usersMap[user.Id] = user
+		go func() {
+			usersMap.Update(*user)
+		}()
 		return
 	}
 
@@ -37,12 +58,14 @@ func createUserRequestHandler(ctx *fasthttp.RequestCtx) {
 }
 
 func updateUserRequestHandler(ctx *fasthttp.RequestCtx, entityId uint) {
-	if user, ok := usersMap[entityId]; ok {
+	if user := usersMap.Get(entityId); user != nil {
 		if updatedUser, err := updateUser(ctx.PostBody(), user); err == nil {
 			ctx.SetConnectionClose()
 			ctx.Success("application/json", []byte("{}"))
 
-			usersMap[user.Id] = updatedUser
+			go func() {
+				usersMap.Update(*updatedUser)
+			}()
 			return
 		}
 		ctx.Error("{}", 400)
@@ -61,7 +84,7 @@ func createUser(postData []byte) (*User, error) {
 		(user.Gender != "m" && user.Gender != "f") {
 		return nil, errors.New("Validation error")
 	}
-	if _, ok := usersMap[user.Id]; ok {
+	if user := usersMap.Get(user.Id); user != nil {
 		return nil, errors.New("User already exists")
 	}
 
@@ -113,8 +136,4 @@ func updateUser(postBody []byte, user *User) (*User, error) {
 	}
 
 	return &updatedUser, nil
-}
-
-func updateUsersMaps(user User) {
-	usersMap[user.Id] = &user
 }

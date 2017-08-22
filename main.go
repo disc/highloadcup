@@ -17,8 +17,8 @@ import (
 var (
 	addr = flag.String("addr", ":80", "TCP address to listen to")
 
-	locationsMap = make(map[uint]*Location)
-	usersMap     = make(map[uint]*User)
+	locationsMap = LocationsMap{locations: make(map[uint]*Location)}
+	usersMap     = UsersMap{users: make(map[uint]*User)}
 	visitsMap    = make(map[uint]*Visit)
 
 	visitsByUserMap     = make(map[uint][]*Visit)
@@ -35,8 +35,8 @@ func parseLocations(fileBytes []byte) {
 	var locations jsonKey
 	json.Unmarshal(fileBytes, &locations)
 
-	for _, loc := range locations.Locations {
-		updateLocationMaps(loc)
+	for _, location := range locations.Locations {
+		locationsMap.Update(location)
 	}
 }
 
@@ -62,7 +62,7 @@ func parseUsers(fileBytes []byte) {
 	json.Unmarshal(fileBytes, &users)
 
 	for _, user := range users.Users {
-		updateUsersMaps(user)
+		usersMap.Update(user)
 	}
 }
 

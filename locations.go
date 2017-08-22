@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/valyala/fasthttp"
+	"sync"
 )
 
 type Location struct {
@@ -14,8 +15,26 @@ type Location struct {
 	Distance uint   `json:"distance"`
 }
 
+type LocationsMap struct {
+	locations map[uint]*Location
+	sync.RWMutex
+}
+
+func (l *LocationsMap) Get(id uint) *Location {
+	l.RLock()
+	defer l.RUnlock()
+
+	return l.locations[id]
+}
+
+func (l *LocationsMap) Update(location Location) {
+	l.Lock()
+	l.locations[location.Id] = &location
+	l.Unlock()
+}
+
 func getLocationRequestHandler(ctx *fasthttp.RequestCtx, entityId uint) {
-	if location, ok := locationsMap[entityId]; ok {
+	if location := locationsMap.Get(entityId); location != nil {
 		response, _ := json.Marshal(location)
 		ctx.Success("application/json", response)
 		return
@@ -28,8 +47,9 @@ func createLocationRequestHandler(ctx *fasthttp.RequestCtx) {
 		ctx.SetConnectionClose()
 		ctx.Success("application/json", []byte("{}"))
 
-		//todo: wrap to goroutine with lock
-		locationsMap[location.Id] = location
+		go func() {
+			locationsMap.Update(*location)
+		}()
 
 		return
 	}
@@ -39,14 +59,15 @@ func createLocationRequestHandler(ctx *fasthttp.RequestCtx) {
 }
 
 func updateLocationRequestHandler(ctx *fasthttp.RequestCtx, entityId uint) {
-	if location, ok := locationsMap[entityId]; ok {
+	if location := locationsMap.Get(entityId); location != nil {
 		if updatedLocation, err := updateLocation(ctx.PostBody(), location); err == nil {
 			ctx.SetConnectionClose()
 			ctx.Success("application/json", []byte("{}"))
-			//todo: wrap to goroutine with lock
-			//TODO: possibile i don't need to update by link because i've already update values
-			// but maybe i need to use copy instead of reference in return
-			locationsMap[location.Id] = updatedLocation
+
+			go func() {
+				locationsMap.Update(*updatedLocation)
+			}()
+
 			return
 		}
 		ctx.Error("{}", 400)
@@ -64,7 +85,7 @@ func createLocation(postBody []byte) (*Location, error) {
 		len(location.City) == 0 {
 		return nil, errors.New("Validation error")
 	}
-	if _, ok := locationsMap[location.Id]; ok {
+	if location := locationsMap.Get(location.Id); location != nil {
 		return nil, errors.New("Location already exists")
 	}
 
@@ -112,8 +133,4 @@ func updateLocation(postBody []byte, location *Location) (*Location, error) {
 	}
 
 	return &updatedLocation, nil
-}
-
-func updateLocationMaps(location Location) {
-	locationsMap[location.Id] = &location
 }

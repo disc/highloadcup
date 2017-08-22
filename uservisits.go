@@ -25,7 +25,7 @@ type UserVisitsFilter struct {
 }
 
 func userVisitsRequestHandler(ctx *fasthttp.RequestCtx, entityId uint, query *fasthttp.Args) {
-	if _, ok := usersMap[entityId]; !ok {
+	if _, ok := usersMap.users[entityId]; !ok {
 		ctx.NotFound()
 		return
 	}
@@ -74,13 +74,14 @@ func getUserVisits(userId uint, filters UserVisitsFilter) []UserVisit {
 		if filters.toDate != nil && visit.Visited_at > *filters.toDate {
 			continue
 		}
-		if filters.country != nil && locationsMap[visit.Location].Country != *filters.country {
+		location := locationsMap.Get(visit.Location)
+		if filters.country != nil && location.Country != *filters.country {
 			continue
 		}
-		if filters.toDistance != nil && locationsMap[visit.Location].Distance >= *filters.toDistance {
+		if filters.toDistance != nil && location.Distance >= *filters.toDistance {
 			continue
 		}
-		userVisits[visit.Visited_at] = UserVisit{visit.Mark, visit.Visited_at, locationsMap[visit.Location].Place}
+		userVisits[visit.Visited_at] = UserVisit{visit.Mark, visit.Visited_at, location.Place}
 	}
 
 	visitedAtList := make([]int, 0, len(userVisits))
