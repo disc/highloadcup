@@ -19,7 +19,7 @@ var (
 
 	locationsMap = LocationsMap{locations: make(map[uint]*Location)}
 	usersMap     = UsersMap{users: make(map[uint]*User)}
-	visitsMap    = make(map[uint]*Visit)
+	visitsMap    = VisitsMap{visits: make(map[uint]*Visit)}
 
 	visitsByUserMap     = make(map[uint][]*Visit)
 	visitsByLocationMap = make(map[uint][]*Visit)

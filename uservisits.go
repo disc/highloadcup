@@ -25,7 +25,7 @@ type UserVisitsFilter struct {
 }
 
 func userVisitsRequestHandler(ctx *fasthttp.RequestCtx, entityId uint, query *fasthttp.Args) {
-	if _, ok := usersMap.users[entityId]; !ok {
+	if user := usersMap.Get(entityId); user == nil {
 		ctx.NotFound()
 		return
 	}

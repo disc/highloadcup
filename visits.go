@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/valyala/fasthttp"
+	"sync"
 )
 
 type Visit struct {
@@ -14,8 +15,26 @@ type Visit struct {
 	Mark       uint `json:"mark"`
 }
 
+type VisitsMap struct {
+	visits map[uint]*Visit
+	sync.RWMutex
+}
+
+func (v *VisitsMap) Get(id uint) *Visit {
+	v.RLock()
+	defer v.RUnlock()
+
+	return v.visits[id]
+}
+
+func (v *VisitsMap) Update(visit Visit) {
+	v.Lock()
+	v.visits[visit.Id] = &visit
+	v.Unlock()
+}
+
 func getVisitRequestHandler(ctx *fasthttp.RequestCtx, entityId uint) {
-	if visit, ok := visitsMap[entityId]; ok {
+	if visit := visitsMap.Get(entityId); visit != nil {
 		response, _ := json.Marshal(visit)
 		ctx.Success("application/json", response)
 		return
@@ -35,7 +54,7 @@ func createVisitRequestHandler(ctx *fasthttp.RequestCtx) {
 }
 
 func updateVisitRequestHandler(ctx *fasthttp.RequestCtx, entityId uint) {
-	if visit, ok := visitsMap[entityId]; ok {
+	if visit := visitsMap.Get(entityId); visit != nil {
 		if updatedVisit, err := updateVisit(ctx.PostBody(), *visit); err == nil {
 			ctx.SetConnectionClose()
 			ctx.Success("application/json", []byte("{}"))
@@ -57,7 +76,7 @@ func createVisit(postData []byte) (*Visit, error) {
 	if visit.Id == 0 || visit.Location == 0 || visit.User == 0 || visit.Mark > 5 {
 		return nil, errors.New("Validation error")
 	}
-	if _, ok := visitsMap[visit.Id]; ok {
+	if visit := visitsMap.Get(visit.Id); visit != nil {
 		return nil, errors.New("Visit already exists")
 	}
 
@@ -106,15 +125,13 @@ func updateVisit(postData []byte, visit Visit) (*Visit, error) {
 
 func updateVisitsMaps(visit Visit, prevRef *Visit) {
 	var (
-		prevVisit       *Visit
-		ok              bool
 		userChanged     = false
 		locationChanged = false
 	)
 	if prevRef == nil {
-		visitsMap[visit.Id] = &visit
+		visitsMap.Update(visit)
 	} else {
-		if prevVisit, ok = visitsMap[visit.Id]; ok {
+		if prevVisit := visitsMap.Get(visit.Id); prevVisit != nil {
 			if prevVisit.User != visit.User {
 				userChanged = true
 				for key, visit := range visitsByUserMap[prevVisit.User] {
@@ -138,12 +155,6 @@ func updateVisitsMaps(visit Visit, prevRef *Visit) {
 	}
 
 	if prevRef == nil || userChanged {
-		//if _, ok := usersVisitsByVisitedAtMap[visit.User]; !ok {
-		//	usersVisitsByVisitedAtMap[visit.User] = make(map[int]*Visit)
-		//}
-		//
-		//usersVisitsByVisitedAtMap[visit.User][visit.Visited_at] = &visit
-
 		visitsByUserMap[visit.User] = append(visitsByUserMap[visit.User], &visit)
 	}
 	if prevRef == nil || locationChanged {
