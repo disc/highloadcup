@@ -72,6 +72,7 @@ func parseOptions(filename string) {
 	if file, err := os.OpenFile(filename, os.O_RDONLY, 0644); err == nil {
 		if line, _, err := bufio.NewReader(file).ReadLine(); err == nil {
 			now, _ = strconv.Atoi(string(line))
+			fmt.Println("`Now` was updated from options.txt", now)
 		}
 	}
 }
