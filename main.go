@@ -12,6 +12,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
+	"bufio"
 )
 
 var (
@@ -23,6 +25,8 @@ var (
 
 	visitsByUserMap     = make(map[uint][]*Visit)
 	visitsByLocationMap = make(map[uint][]*Visit)
+
+	now = int(time.Now().Unix())
 )
 
 func parseLocations(fileBytes []byte) {
@@ -64,6 +68,14 @@ func parseUsers(fileBytes []byte) {
 	}
 }
 
+func parseOptions(filename string) {
+	if file, err := os.OpenFile(filename, os.O_RDONLY, 0644); err == nil {
+		if line, _, err := bufio.NewReader(file).ReadLine(); err == nil {
+			now, _ = strconv.Atoi(string(line))
+		}
+	}
+}
+
 func parseFile(filename string) {
 	rawData, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -77,6 +89,8 @@ func parseFile(filename string) {
 		parseLocations(rawData)
 	} else if strings.LastIndex(filename, "visits_") != -1 {
 		parseVisits(rawData)
+	} else if strings.LastIndex(filename, "options.txt") != -1 {
+		parseOptions(filename)
 	}
 }
 
@@ -88,11 +102,12 @@ func parseDataDir(dirPath string) {
 }
 
 func main() {
+	start := time.Now()
 	fmt.Println("Started")
 
 	parseDataDir("./data/")
 
-	fmt.Println("Parsing completed")
+	fmt.Println("Parsing completed at " + time.Since(start).String())
 
 	flag.Parse()
 

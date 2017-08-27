@@ -2,7 +2,6 @@ package main
 
 import (
 	"math"
-	"time"
 )
 
 func Round(val float64, roundOn float64, places int) (newVal float64) {
@@ -21,6 +20,6 @@ func Round(val float64, roundOn float64, places int) (newVal float64) {
 	return
 }
 
-func getTimestampByAge(age *int) int {
-	return int(time.Now().Unix()) - (*age)*int(math.Floor(365.24*24*60*60))
+func getTimestampByAge(age *int, now int) int {
+	return now - (*age)*int(math.Floor(365.24*24*60*60))
 }
