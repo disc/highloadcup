@@ -29,6 +29,7 @@ func locationAvgRequestHandler(ctx *fasthttp.RequestCtx, locationId uint, query 
 	if fromDate := query.Has("fromDate"); fromDate {
 		if fromDateInt, err := strconv.Atoi(string(query.Peek("fromDate"))); err != nil {
 			ctx.Error("{}", 400)
+			return
 		} else {
 			filters.fromDate = &fromDateInt
 		}
@@ -36,6 +37,7 @@ func locationAvgRequestHandler(ctx *fasthttp.RequestCtx, locationId uint, query 
 	if toDate := query.Has("toDate"); toDate {
 		if toDateInt, err := strconv.Atoi(string(query.Peek("toDate"))); err != nil {
 			ctx.Error("{}", 400)
+			return
 		} else {
 			filters.toDate = &toDateInt
 		}
@@ -43,6 +45,7 @@ func locationAvgRequestHandler(ctx *fasthttp.RequestCtx, locationId uint, query 
 	if fromAge := query.Has("fromAge"); fromAge {
 		if fromAgeInt, err := strconv.Atoi(string(query.Peek("fromAge"))); err != nil {
 			ctx.Error("{}", 400)
+			return
 		} else {
 			filters.fromAge = &fromAgeInt
 		}
@@ -50,6 +53,7 @@ func locationAvgRequestHandler(ctx *fasthttp.RequestCtx, locationId uint, query 
 	if toAge := query.Has("toAge"); toAge {
 		if toAgeInt, err := strconv.Atoi(string(query.Peek("toAge"))); err != nil {
 			ctx.Error("{}", 400)
+			return
 		} else {
 			filters.toAge = &toAgeInt
 		}
@@ -59,6 +63,7 @@ func locationAvgRequestHandler(ctx *fasthttp.RequestCtx, locationId uint, query 
 			filters.gender = &genderStr
 		} else {
 			ctx.Error("{}", 400)
+			return
 		}
 	}
 

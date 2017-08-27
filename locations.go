@@ -55,7 +55,6 @@ func createLocationRequestHandler(ctx *fasthttp.RequestCtx) {
 	}
 	ctx.Error("{}", 400)
 	return
-
 }
 
 func updateLocationRequestHandler(ctx *fasthttp.RequestCtx, entityId uint) {

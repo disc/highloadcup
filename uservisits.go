@@ -35,6 +35,7 @@ func userVisitsRequestHandler(ctx *fasthttp.RequestCtx, entityId uint, query *fa
 		if fromDate := query.Has("fromDate"); fromDate {
 			if fromDateInt, err := strconv.Atoi(string(query.Peek("fromDate"))); err != nil {
 				ctx.Error("{}", 400)
+				return
 			} else {
 				filters.fromDate = &fromDateInt
 			}
@@ -42,6 +43,7 @@ func userVisitsRequestHandler(ctx *fasthttp.RequestCtx, entityId uint, query *fa
 		if toDate := query.Has("toDate"); toDate {
 			if toDateInt, err := strconv.Atoi(string(query.Peek("toDate"))); err != nil {
 				ctx.Error("{}", 400)
+				return
 			} else {
 				filters.toDate = &toDateInt
 			}
@@ -54,6 +56,7 @@ func userVisitsRequestHandler(ctx *fasthttp.RequestCtx, entityId uint, query *fa
 			// get location id by Country
 			if distanceInt, err := strconv.Atoi(string(query.Peek("toDistance"))); err != nil {
 				ctx.Error("{}", 400)
+				return
 			} else {
 				distanceInt := uint(distanceInt)
 				filters.toDistance = &distanceInt
