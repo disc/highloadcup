@@ -86,7 +86,7 @@ func getLocationAvg(locationId uint, filters LocationAvgFilter) float64 {
 			if filters.fromAge != nil && user.Birth_date > getTimestampByAge(filters.fromAge, now) {
 				continue
 			}
-			if filters.toAge != nil && user.Birth_date < getTimestampByAge(filters.toAge, now) {
+			if filters.toAge != nil && user.Birth_date <= getTimestampByAge(filters.toAge, now) {
 				continue
 			}
 		}

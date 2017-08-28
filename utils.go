@@ -21,5 +21,5 @@ func Round(val float64, roundOn float64, places int) (newVal float64) {
 }
 
 func getTimestampByAge(age *int, now int) int {
-	return now - (*age)*int(math.Floor(365.24*24*60*60))
+	return now - (*age)*int(math.Floor(365.25*24*60*60))
 }
