@@ -18,7 +18,7 @@ test-phase-3:
 	$$GOBIN/highloadcup_tester -addr http://127.0.0.1:8080 -hlcupdocs $$HOME/workspace/hlcupdocs/data/TRAIN/ -test -phase 3
 tests: test-phase-1 test-phase-2 test-phase-3
 
-app-run: app-unzip
+app-run: app-unzip app-use-options
 	/go/bin/highloadcup
 app-unzip:
 	mkdir -p $$(pwd)/data/ > /dev/null
