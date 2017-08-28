@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 	"bufio"
+	"runtime/debug"
 )
 
 var (
@@ -27,6 +28,8 @@ var (
 	visitsByLocationMap = make(map[uint][]*Visit)
 
 	now = int(time.Now().Unix())
+
+	needToDisableGC = false
 )
 
 func parseLocations(fileBytes []byte) {
@@ -137,6 +140,14 @@ func getEntityId(path []byte) uint {
 func requestHandler(ctx *fasthttp.RequestCtx) {
 	path := ctx.Path()
 
+	isGetRequest := ctx.IsGet()
+
+	if isGetRequest {
+		disableGC()
+	} else {
+		needToDisableGC = true
+	}
+
 	if path[1] == 'l' && path[len(path)-1] == 'g' {
 		locationAvgRequestHandler(ctx, getEntityId(path), ctx.QueryArgs())
 		return
@@ -151,7 +162,7 @@ func requestHandler(ctx *fasthttp.RequestCtx) {
 		if path[len(path)-1] == 'w' {
 			createVisitRequestHandler(ctx)
 		} else {
-			if ctx.IsGet() {
+			if isGetRequest {
 				getVisitRequestHandler(ctx, getEntityId(path))
 			} else {
 				updateVisitRequestHandler(ctx, getEntityId(path))
@@ -165,7 +176,7 @@ func requestHandler(ctx *fasthttp.RequestCtx) {
 			createUserRequestHandler(ctx)
 		} else {
 			id := getEntityId(path)
-			if ctx.IsGet() {
+			if isGetRequest {
 				getUserRequestHandler(ctx, id)
 			} else {
 				updateUserRequestHandler(ctx, id)
@@ -179,12 +190,20 @@ func requestHandler(ctx *fasthttp.RequestCtx) {
 			createLocationRequestHandler(ctx)
 		} else {
 			id := getEntityId(path)
-			if ctx.IsGet() {
+			if isGetRequest {
 				getLocationRequestHandler(ctx, id)
 			} else {
 				updateLocationRequestHandler(ctx, id)
 			}
 		}
 		return
+	}
+}
+
+func disableGC() {
+	if needToDisableGC {
+		debug.SetGCPercent(-1)
+		fmt.Println("GC was disabled")
+		needToDisableGC = false
 	}
 }

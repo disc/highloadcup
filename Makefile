@@ -19,14 +19,15 @@ test-phase-3:
 tests: test-phase-1 test-phase-2 test-phase-3
 
 app-run: app-unzip
-	if [ -e /tmp/data/options.txt ] ; \
-    then \
-         cp /tmp/data/options.txt $$(pwd)/data/ > /dev/null ; \
-    fi;
 	/go/bin/highloadcup
 app-unzip:
 	mkdir -p $$(pwd)/data/ > /dev/null
 	unzip -oq /tmp/data/data.zip -d $$(pwd)/data/
+app-use-options:
+	if [ -e /tmp/data/options.txt ] ; \
+    then \
+         cp /tmp/data/options.txt $$(pwd)/data/ > /dev/null ; \
+    fi;
 
 bench:
 	go test -bench=.
