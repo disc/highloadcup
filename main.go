@@ -129,7 +129,7 @@ func main() {
 		maxPostsCount = 3000
 	} else {
 		runMode = "full"
-		maxPostsCount = 40000
+		maxPostsCount = 38000
 	}
 	fmt.Println("Running mode: " + runMode)
 
