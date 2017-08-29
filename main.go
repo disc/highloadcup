@@ -29,7 +29,10 @@ var (
 
 	now = int(time.Now().Unix())
 
-	needToDisableGC = false
+	needToDisableGC = true
+	postsCount = 0
+	maxPostsCount = 0
+	isTestMode = true
 )
 
 func parseLocations(fileBytes []byte) {
@@ -73,9 +76,16 @@ func parseUsers(fileBytes []byte) {
 
 func parseOptions(filename string) {
 	if file, err := os.OpenFile(filename, os.O_RDONLY, 0644); err == nil {
-		if line, _, err := bufio.NewReader(file).ReadLine(); err == nil {
+		reader := bufio.NewReader(file)
+		if line, _, err := reader.ReadLine(); err == nil {
 			now, _ = strconv.Atoi(string(line))
 			fmt.Println("`Now` was updated from options.txt", now)
+		}
+		if line, _, err := reader.ReadLine(); err == nil {
+			mode, _ := strconv.Atoi(string(line))
+			if mode == 1 {
+				isTestMode = false
+			}
 		}
 	}
 }
@@ -113,6 +123,16 @@ func main() {
 
 	fmt.Println("Parsing completed at " + time.Since(start).String())
 
+	var runMode string
+	if isTestMode {
+		runMode = "train"
+		maxPostsCount = 3000
+	} else {
+		runMode = "full"
+		maxPostsCount = 40000
+	}
+	fmt.Println("Running mode: " + runMode)
+
 	flag.Parse()
 
 	h := requestHandler
@@ -142,10 +162,11 @@ func requestHandler(ctx *fasthttp.RequestCtx) {
 
 	isGetRequest := ctx.IsGet()
 
-	if isGetRequest {
-		disableGC()
-	} else {
-		needToDisableGC = true
+	if !isGetRequest {
+		postsCount++
+		if postsCount == maxPostsCount {
+			go disableGC()
+		}
 	}
 
 	if path[1] == 'l' && path[len(path)-1] == 'g' {
