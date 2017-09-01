@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 	"bufio"
-	"runtime/debug"
 )
 
 var (
@@ -28,11 +27,6 @@ var (
 	visitsByLocationMap = make(map[uint][]*Visit)
 
 	now = int(time.Now().Unix())
-
-	needToDisableGC = true
-	postsCount = 0
-	maxPostsCount = 0
-	isTestMode = true
 )
 
 func parseLocations(fileBytes []byte) {
@@ -81,12 +75,6 @@ func parseOptions(filename string) {
 			now, _ = strconv.Atoi(string(line))
 			fmt.Println("`Now` was updated from options.txt", now)
 		}
-		if line, _, err := reader.ReadLine(); err == nil {
-			mode, _ := strconv.Atoi(string(line))
-			if mode == 1 {
-				isTestMode = false
-			}
-		}
 	}
 }
 
@@ -123,16 +111,6 @@ func main() {
 
 	fmt.Println("Parsing completed at " + time.Since(start).String())
 
-	var runMode string
-	if isTestMode {
-		runMode = "train"
-		maxPostsCount = 3000
-	} else {
-		runMode = "full"
-		maxPostsCount = 39999
-	}
-	fmt.Println("Running mode: " + runMode)
-
 	flag.Parse()
 
 	h := requestHandler
@@ -161,13 +139,6 @@ func requestHandler(ctx *fasthttp.RequestCtx) {
 	path := ctx.Path()
 
 	isGetRequest := ctx.IsGet()
-
-	if !isGetRequest {
-		postsCount++
-		if postsCount == maxPostsCount {
-			go disableGC()
-		}
-	}
 
 	if path[1] == 'l' && path[len(path)-1] == 'g' {
 		locationAvgRequestHandler(ctx, getEntityId(path), ctx.QueryArgs())
@@ -218,13 +189,5 @@ func requestHandler(ctx *fasthttp.RequestCtx) {
 			}
 		}
 		return
-	}
-}
-
-func disableGC() {
-	if needToDisableGC {
-		debug.SetGCPercent(-1)
-		fmt.Println("GC was disabled")
-		needToDisableGC = false
 	}
 }
